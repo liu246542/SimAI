@@ -4,6 +4,7 @@ LICENSE file in the root directory of this source tree.
 *******************************************************************************/
 
 #include "TopologyRegistry.hh"
+#include <iostream>
 
 namespace AstraSim {
 
@@ -14,6 +15,10 @@ TopologyRegistry& TopologyRegistry::instance() {
 
 bool TopologyRegistry::registerTopology(const std::string& name,
                                         FactoryFn factory) {
+  if (factories_.count(name)) {
+    std::cerr << "Warning: TopologyRegistry overwriting '" << name << "'"
+              << std::endl;
+  }
   factories_[name] = std::move(factory);
   return true;
 }

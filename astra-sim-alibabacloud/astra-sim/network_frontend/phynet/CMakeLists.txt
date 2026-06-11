@@ -19,5 +19,5 @@ add_executable(SimAI_phynet ${SOURCES} ${HEADERS})
 target_link_options(SimAI_phynet PRIVATE "-static-libstdc++")
 
 if(use_rdma)
-    target_link_libraries(SimAI_phynet AstraSim mpi ibverbs pthread)
+    target_link_libraries(SimAI_phynet -Wl,--whole-archive AstraSim -Wl,--no-whole-archive mpi ibverbs pthread)
 endif()

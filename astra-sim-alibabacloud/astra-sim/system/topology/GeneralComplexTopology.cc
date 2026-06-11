@@ -56,13 +56,13 @@ GeneralComplexTopology::GeneralComplexTopology(
     LogicalTopology* topo = TopologyRegistry::instance().create(name, tp);
 
     if (!topo) {
-      topo = new RingTopology(RingTopology::Dimension::NA, id,
-                              dimension_size[dim], tp.index_in_dimension, offset);
+      std::cerr << "Error: No known topology for '" << name << "'" << std::endl;
+      exit(1);
     }
 
     dimension_topology.push_back(topo);
 
-    if (name.substr(0, 3) == "one") return;
+    if (name == "oneRing" || name == "oneDirect" || name == "oneHalvingDoubling") return;
 
     offset *= dimension_size[dim];
   }

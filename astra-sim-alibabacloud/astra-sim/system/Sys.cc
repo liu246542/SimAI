@@ -1130,7 +1130,7 @@ CollectivePhase Sys::generate_collective_phase(
 
   std::string name = collective_implementation->config_name;
 
-  if (name == "NcclFlowModel") {
+  if (name == "NcclFlowModel" || name == "ncclRingTreeModel") {
     ParallelStrategy comm_ps;
     if (workload->current_state == Workload::LoopState::Forward_Pass) {
       comm_ps = static_cast<ParallelStrategy>(

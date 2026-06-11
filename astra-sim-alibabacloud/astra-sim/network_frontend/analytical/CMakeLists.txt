@@ -14,4 +14,4 @@ include_directories("${PROJECT_SOURCE_DIR}/../../../")
 add_executable(SimAI_analytical ${SOURCES} ${HEADERS})
 
 # 链接库
-target_link_libraries(SimAI_analytical AstraSim) # 替换为实际需要链接的库名
+target_link_libraries(SimAI_analytical -Wl,--whole-archive AstraSim -Wl,--no-whole-archive)
