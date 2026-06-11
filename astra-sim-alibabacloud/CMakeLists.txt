@@ -36,5 +36,5 @@ elseif(use_analytical)
 endif()
 include_directories("${PROJECT_SOURCE_DIR}/../../")
 add_library(AstraSim ${astra_SRC})
-set_property(TARGET AstraSim PROPERTY CXX_STANDARD 11)
+set_property(TARGET AstraSim PROPERTY CXX_STANDARD 17)
 

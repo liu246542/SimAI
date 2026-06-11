@@ -29,19 +29,20 @@ enum class ComType {
 };
 enum class CollectiveOptimization { Baseline, LocalBWAware };
 enum class CollectiveImplementationType {
-  Ring, 
+  Ring,
   OneRing,
-  Direct, 
+  Direct,
   OneDirect,
   AllToAll,
   DoubleBinaryTreeLocalAllToAll,
   LocalRingNodeA2AGlobalDBT,
   HierarchicalRing,
   DoubleBinaryTree,
-  HalvingDoubling,  
+  HalvingDoubling,
   OneHalvingDoubling,
   NcclFlowModel,
   NcclTreeFlowModel,
+  UserRegistered,
 };
 enum class CollectiveBarrier { Blocking, Non_Blocking };
 enum class SchedulingPolicy { LIFO, FIFO, HIGHEST, None };
@@ -123,9 +124,10 @@ class CloneInterface {
 class CollectiveImplementation : public CloneInterface {
  public:
   CollectiveImplementationType type;
-  CollectiveImplementation(CollectiveImplementationType type) {
-    this->type = type;
-  };
+  std::string config_name;
+  CollectiveImplementation(CollectiveImplementationType type,
+                           const std::string& name = "")
+      : type(type), config_name(name) {};
   virtual CloneInterface* clone() const {
     return new CollectiveImplementation(*this);
   }
@@ -138,8 +140,9 @@ class DirectCollectiveImplementation : public CollectiveImplementation {
   };
   DirectCollectiveImplementation(
       CollectiveImplementationType type,
-      int direct_collective_window)
-      : CollectiveImplementation(type) {
+      int direct_collective_window,
+      const std::string& name = "")
+      : CollectiveImplementation(type, name) {
     this->direct_collective_window = direct_collective_window;
   }
 };

@@ -20,14 +20,32 @@
 #include<chrono>
 
 #include "NcclTreeFlowModel.hh"
+#include "AlgorithmRegistry.hh"
 #include "astra-sim/system/PacketBundle.hh"
 #include "astra-sim/system/RecvPacketEventHadndlerData.hh"
 #include "astra-sim/system/MockNcclLog.h"
 #ifdef PHY_RDMA
 #include "astra-sim/system/SimAiFlowModelRdma.hh"
-extern FlowPhyRdma flow_rdma; 
+extern FlowPhyRdma flow_rdma;
 #endif
 
+REGISTER_ALGORITHM("NcclFlowModel", [](const AstraSim::AlgorithmParams& p) -> AstraSim::Algorithm* {
+  auto flow_models = std::static_pointer_cast<MockNccl::FlowModels>(p.flow_models);
+  return new AstraSim::NcclTreeFlowModel(
+      p.collective_type, p.id, p.layer_num,
+      static_cast<AstraSim::RingTopology*>(p.topology),
+      p.data_size, p.direction, p.injection_policy, p.boost_mode,
+      flow_models, p.num_channels);
+})
+
+REGISTER_ALGORITHM("ncclRingTreeModel", [](const AstraSim::AlgorithmParams& p) -> AstraSim::Algorithm* {
+  auto flow_models = std::static_pointer_cast<MockNccl::FlowModels>(p.flow_models);
+  return new AstraSim::NcclTreeFlowModel(
+      p.collective_type, p.id, p.layer_num,
+      static_cast<AstraSim::RingTopology*>(p.topology),
+      p.data_size, p.direction, p.injection_policy, p.boost_mode,
+      flow_models, p.num_channels);
+})
 
 namespace AstraSim {
 std::atomic<bool> NcclTreeFlowModel::g_flow_inCriticalSection(false);

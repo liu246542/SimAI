@@ -15,6 +15,7 @@ LICENSE file in the root directory of this source tree.
 #include "RendezvousRecvData.hh"
 #include "RendezvousSendData.hh"
 #include "calbusbw.h"
+#include "astra-sim/system/collective/AlgorithmRegistry.hh"
 #include "astra-sim/system/collective/AllToAll.hh"
 #include "astra-sim/system/collective/DoubleBinaryTreeAllReduce.hh"
 #include "astra-sim/system/collective/HalvingDoubling.hh"
@@ -665,39 +666,42 @@ std::vector<CollectiveImplementation*> Sys::
   for (std::string dimension_input : inputs_per_dimension) {
     if (dimension_input == "ring") {
       result.push_back(
-          new CollectiveImplementation(CollectiveImplementationType::Ring));
+          new CollectiveImplementation(CollectiveImplementationType::Ring, "ring"));
     } else if (dimension_input == "oneRing") {
       result.push_back(
-          new CollectiveImplementation(CollectiveImplementationType::OneRing));
+          new CollectiveImplementation(CollectiveImplementationType::OneRing, "oneRing"));
     } else if (dimension_input == "doubleBinaryTree") {
       result.push_back(new CollectiveImplementation(
-          CollectiveImplementationType::DoubleBinaryTree));
+          CollectiveImplementationType::DoubleBinaryTree, "doubleBinaryTree"));
     } else if (dimension_input.rfind("direct", 0) == 0) {
       int window = -1;
       if (dimension_input != "direct") {
         window = std::stoi(dimension_input.substr(6, 5));
       }
       result.push_back(new DirectCollectiveImplementation(
-          CollectiveImplementationType::Direct, window));
+          CollectiveImplementationType::Direct, window, "direct"));
     } else if (dimension_input.rfind("oneDirect", 0) == 0) {
       int window = -1;
       if (dimension_input != "oneDirect") {
         window = std::stoi(dimension_input.substr(9, 5));
       }
       result.push_back(new DirectCollectiveImplementation(
-          CollectiveImplementationType::OneDirect, window));
+          CollectiveImplementationType::OneDirect, window, "oneDirect"));
     } else if (dimension_input == "halvingDoubling") {
       result.push_back(new CollectiveImplementation(
-          CollectiveImplementationType::HalvingDoubling));
+          CollectiveImplementationType::HalvingDoubling, "halvingDoubling"));
     } else if (dimension_input == "oneHalvingDoubling") {
       result.push_back(new CollectiveImplementation(
-          CollectiveImplementationType::OneHalvingDoubling));
+          CollectiveImplementationType::OneHalvingDoubling, "oneHalvingDoubling"));
     } else if(dimension_input == "NcclFlowModel") {
       result.push_back(new CollectiveImplementation(
-          CollectiveImplementationType::NcclFlowModel));
+          CollectiveImplementationType::NcclFlowModel, "NcclFlowModel"));
     } else if(dimension_input == "ncclRingTreeModel") {
       result.push_back(new CollectiveImplementation(
-          CollectiveImplementationType::NcclTreeFlowModel));
+          CollectiveImplementationType::NcclTreeFlowModel, "ncclRingTreeModel"));
+    } else if (AlgorithmRegistry::instance().hasAlgorithm(dimension_input)) {
+      result.push_back(new CollectiveImplementation(
+          CollectiveImplementationType::UserRegistered, dimension_input));
     } else {
       sys_panic(
           "Cannot interpret collective implementations. Please check the collective implementations in the sys"
@@ -1106,218 +1110,100 @@ CollectivePhase Sys::generate_collective_phase(
     InjectionPolicy injection_policy,
     CollectiveImplementation* collective_implementation,
     bool boost_mode) {
-        MockNcclLog* NcclLog = MockNcclLog::getInstance();
+  MockNcclLog* NcclLog = MockNcclLog::getInstance();
 
-        if (collective_implementation->type == CollectiveImplementationType::Ring ||
-              collective_implementation->type ==
-                  CollectiveImplementationType::OneRing) {
-            CollectivePhase vn(
-                this,
-                queue_id,
-                new Ring(
-                    collective_type,
-                    id,
-                    layer_num,
-                    (RingTopology*)topology,
-                    data_size,
-                    direction,
-                    injection_policy,
-                    boost_mode));
-                  return vn;
-          } else if (
-              collective_implementation->type == CollectiveImplementationType::Direct ||
-              collective_implementation->type ==
-                  CollectiveImplementationType::OneDirect) {
-            CollectivePhase vn(
-                this,
-                queue_id,
-                new AllToAll(
-                    collective_type,
-                    ((DirectCollectiveImplementation*)collective_implementation)
-                        ->direct_collective_window,
-                    id,
-                    layer_num,
-                    (RingTopology*)topology,
-                    data_size,
-                    direction,
-                    InjectionPolicy::Normal,
-                    boost_mode));
-                return vn;
-          } else if (
-              collective_implementation->type ==
-              CollectiveImplementationType::DoubleBinaryTree) {
-            CollectivePhase vn(
-                this,
-                queue_id,
-                new DoubleBinaryTreeAllReduce(
-                    id, layer_num, (BinaryTree*)topology, data_size, boost_mode));
-                return vn;
-          } else if (
-              collective_implementation->type ==
-                  CollectiveImplementationType::HalvingDoubling ||
-              collective_implementation->type ==
-                  CollectiveImplementationType::OneHalvingDoubling) {
-            CollectivePhase vn(
-                this,
-                queue_id,
-                new HalvingDoubling(
-                    collective_type,
-                    id,
-                    layer_num,
-                    (RingTopology*)topology,
-                    data_size,
-                    boost_mode));
-                    return vn;
-          } else if(collective_implementation->type == CollectiveImplementationType::NcclFlowModel) {
-              ParallelStrategy  comm_ps;
-              if (workload->current_state == Workload::LoopState::Forward_Pass){
-                comm_ps = static_cast<ParallelStrategy> (workload->layers[workload->index]->fwd_pass_group_type);
-              }
-              else if(workload->current_state == Workload::LoopState::Input_Gradient){
-                comm_ps = static_cast<ParallelStrategy> (workload->layers[workload->index]->input_grad_group_type);
-              }
-              else if(workload->current_state == Workload::LoopState::Weight_Gradient){
-                comm_ps = static_cast<ParallelStrategy> (workload->layers[workload->index]->weight_grad_group_type);
-              }
-              MockNccl::ncclInfo *nccl_info;
-              std::shared_ptr<void> ptr_FlowModels;
-              {
-                Sys::sysCriticalSection cs;
-                nccl_info = get_nccl_Info(comm_ps,data_size,collective_type);
-                ptr_FlowModels = generate_flow_model(comm_ps, data_size, collective_type); 
-                cs.ExitSection();
-              }
-              
-              if(nccl_info->algorithm == NCCL_ALGO_RING) {
-                std::shared_ptr<MockNccl::FlowModels> RingFlowModels = std::static_pointer_cast<MockNccl::FlowModels>(ptr_FlowModels);
-                std::map<int,std::map<int,std::vector<int>>> channels;
-                {
-                  Sys::sysCriticalSection cs;
-                  channels = mock_nccl_comms[comm_ps]->get_rings();
-                  cs.ExitSection();
-                }
-                NcclLog->writeLog(NcclLogLevel::DEBUG,"rank %d generate FlowModels",id);
-                if(RingFlowModels != nullptr){
-                  NcclLog->writeLog(NcclLogLevel::DEBUG,"rank %d NcclMock generate  %d channel and flow model count:  %d",id,channels.size(),RingFlowModels->size());
-                  for (auto flow : *RingFlowModels) {
-                    int prev;
-                    int parent_flow_id;
-                    int child_flow_id;
-                    if (flow.second.prev.size() == 0) {
-                      prev = -1;
-                    } else {
-                      prev = flow.second.prev[0];
-                    }
-                    if (flow.second.child_flow_id.size() == 0) {
-                      child_flow_id = -1;
-                    } else {
-                      child_flow_id = flow.second.child_flow_id[0];
-                    }
-                    if (flow.second.parent_flow_id.size() == 0) {
-                      parent_flow_id = -1;
-                    } else {
-                      parent_flow_id = flow.second.parent_flow_id[0];
-                    }
-                    NcclLog->writeLog(NcclLogLevel::DEBUG," %d,  %d,  %d to  %d current_flow_id %d prev rank:  %d parent_flow_id:  %d child_flow_id:  %d chunk_id:  %d flow_size: %lu chunk_count:  %d ",flow.first.first,flow.first.second,flow.second.src,flow.second.dest,flow.second.flow_id,prev,parent_flow_id,child_flow_id,flow.second.chunk_id,flow.second.flow_size,flow.second.chunk_count);
-                  }
-                }
-                CollectivePhase vn(
-                    this,
-                    queue_id,
-                    new NcclTreeFlowModel(
-                        collective_type,
-                        id,
-                        layer_num,
-                        (RingTopology*)topology,
-                        data_size,
-                        direction,
-                        injection_policy,
-                        boost_mode,
-                        RingFlowModels,
-                        channels.size()));
-                return vn;
-              } else if(nccl_info->algorithm == NCCL_ALGO_TREE) {
-                std::shared_ptr<MockNccl::FlowModels> TreeFlowModels;
-                MockNccl::TreeChannels treechannels;
-                {
-                  Sys::sysCriticalSection cs;
-                  TreeFlowModels = std::static_pointer_cast<MockNccl::FlowModels>(ptr_FlowModels);
-                  treechannels = mock_nccl_comms[comm_ps]->get_treechannels();
-                  cs.ExitSection();
-                }
-                CollectivePhase vn(
-                    this,
-                    queue_id,
-                    new NcclTreeFlowModel(
-                        collective_type,
-                        id,
-                        layer_num,
-                        (RingTopology*)topology,
-                        data_size,
-                        direction,
-                        injection_policy,
-                        boost_mode,
-                        TreeFlowModels,
-                        treechannels.size()));
-                return vn;
+  AlgorithmParams params;
+  params.collective_type = collective_type;
+  params.id = id;
+  params.layer_num = layer_num;
+  params.topology = topology;
+  params.data_size = data_size;
+  params.boost_mode = boost_mode;
+  params.direction = direction;
+  params.injection_policy = injection_policy;
+  params.sys = this;
 
-              } else if(nccl_info->algorithm == NCCL_ALGO_NVLS) {
-                collective_type = ComType::All_Reduce_NVLS;
-                std::shared_ptr<MockNccl::FlowModels> RingFlowModels = std::static_pointer_cast<MockNccl::FlowModels>(ptr_FlowModels);
-                MockNccl::TreeChannels treechannels;
-                {
-                  Sys::sysCriticalSection cs;
-                  treechannels = mock_nccl_comms[comm_ps]->get_treechannels();
-                  cs.ExitSection();
-                }
-                NcclLog->writeLog(NcclLogLevel::DEBUG,"rank %d generate FlowModels",id);
-                if(RingFlowModels != nullptr){
-                  NcclLog->writeLog(NcclLogLevel::DEBUG,"rank %d NcclMock generate  %d channel and flow model count:  %d",id,treechannels.size(),RingFlowModels->size());
-                  for (auto flow : *RingFlowModels) {
-                    int prev;
-                    int parent_flow_id;
-                    int child_flow_id;
-                    if (flow.second.prev.size() == 0) {
-                      prev = -1;
-                    } else {
-                      prev = flow.second.prev[0];
-                    }
-                    if (flow.second.child_flow_id.size() == 0) {
-                      child_flow_id = -1;
-                    } else {
-                      child_flow_id = flow.second.child_flow_id[0];
-                    }
-                    if (flow.second.parent_flow_id.size() == 0) {
-                      parent_flow_id = -1;
-                    } else {
-                      parent_flow_id = flow.second.parent_flow_id[0];
-                    }
-                    NcclLog->writeLog(NcclLogLevel::DEBUG," %d,  %d,  %d to  %d current_flow_id %d prev rank:  %d parent_flow_id:  %d child_flow_id:  %d chunk_id:  %d flow_size: %lu chunk_count:  %d ",flow.first.first,flow.first.second,flow.second.src,flow.second.dest,flow.second.flow_id,prev,parent_flow_id,child_flow_id,flow.second.chunk_id,flow.second.flow_size,flow.second.chunk_count);
-                  }
-                }
-                CollectivePhase vn(
-                    this,
-                    queue_id,
-                    new NcclTreeFlowModel(
-                        collective_type,
-                        id,
-                        layer_num,
-                        (RingTopology*)topology,
-                        data_size,
-                        direction,
-                        injection_policy,
-                        boost_mode,
-                        RingFlowModels,
-                        treechannels.size()));
-                return vn;
-              } 
+  if (auto* dci = dynamic_cast<DirectCollectiveImplementation*>(
+          collective_implementation)) {
+    params.direct_collective_window = dci->direct_collective_window;
+  }
 
-          } else {
-            std::cerr
-                << "Error: No known collective implementation for collective phase"
-                << std::endl;
-            exit(1);
-          }
+  std::string name = collective_implementation->config_name;
+
+  if (name == "NcclFlowModel") {
+    ParallelStrategy comm_ps;
+    if (workload->current_state == Workload::LoopState::Forward_Pass) {
+      comm_ps = static_cast<ParallelStrategy>(
+          workload->layers[workload->index]->fwd_pass_group_type);
+    } else if (workload->current_state == Workload::LoopState::Input_Gradient) {
+      comm_ps = static_cast<ParallelStrategy>(
+          workload->layers[workload->index]->input_grad_group_type);
+    } else if (workload->current_state == Workload::LoopState::Weight_Gradient) {
+      comm_ps = static_cast<ParallelStrategy>(
+          workload->layers[workload->index]->weight_grad_group_type);
+    }
+
+    MockNccl::ncclInfo* nccl_info;
+    std::shared_ptr<void> ptr_FlowModels;
+    {
+      Sys::sysCriticalSection cs;
+      nccl_info = get_nccl_Info(comm_ps, data_size, collective_type);
+      ptr_FlowModels = generate_flow_model(comm_ps, data_size, collective_type);
+      cs.ExitSection();
+    }
+
+    params.flow_models = ptr_FlowModels;
+
+    if (nccl_info->algorithm == NCCL_ALGO_RING) {
+      std::map<int, std::map<int, std::vector<int>>> channels;
+      {
+        Sys::sysCriticalSection cs;
+        channels = mock_nccl_comms[comm_ps]->get_rings();
+        cs.ExitSection();
+      }
+      params.num_channels = channels.size();
+      auto flow_models = std::static_pointer_cast<MockNccl::FlowModels>(ptr_FlowModels);
+      NcclLog->writeLog(NcclLogLevel::DEBUG, "rank %d generate FlowModels", id);
+      if (flow_models != nullptr) {
+        NcclLog->writeLog(NcclLogLevel::DEBUG,
+            "rank %d NcclMock generate  %d channel and flow model count:  %d",
+            id, channels.size(), flow_models->size());
+      }
+    } else if (nccl_info->algorithm == NCCL_ALGO_TREE) {
+      MockNccl::TreeChannels treechannels;
+      {
+        Sys::sysCriticalSection cs;
+        treechannels = mock_nccl_comms[comm_ps]->get_treechannels();
+        cs.ExitSection();
+      }
+      params.num_channels = treechannels.size();
+    } else if (nccl_info->algorithm == NCCL_ALGO_NVLS) {
+      params.collective_type = ComType::All_Reduce_NVLS;
+      MockNccl::TreeChannels treechannels;
+      {
+        Sys::sysCriticalSection cs;
+        treechannels = mock_nccl_comms[comm_ps]->get_treechannels();
+        cs.ExitSection();
+      }
+      params.num_channels = treechannels.size();
+      auto flow_models = std::static_pointer_cast<MockNccl::FlowModels>(ptr_FlowModels);
+      NcclLog->writeLog(NcclLogLevel::DEBUG, "rank %d generate FlowModels", id);
+      if (flow_models != nullptr) {
+        NcclLog->writeLog(NcclLogLevel::DEBUG,
+            "rank %d NcclMock generate  %d channel and flow model count:  %d",
+            id, treechannels.size(), flow_models->size());
+      }
+    }
+  }
+
+  Algorithm* algo = AlgorithmRegistry::instance().create(name, params);
+  if (!algo) {
+    std::cerr << "Error: No known collective implementation for '"
+              << name << "'" << std::endl;
+    exit(1);
+  }
+
+  return CollectivePhase(this, queue_id, algo);
 }
 
 std::map<std::pair<int,int>, MockNccl::SingleFlow> Sys:: generate_net_test_flow_model(uint64_t data_size, int nums) {

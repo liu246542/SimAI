@@ -4,6 +4,22 @@ LICENSE file in the root directory of this source tree.
 *******************************************************************************/
 
 #include "AllToAll.hh"
+#include "AlgorithmRegistry.hh"
+
+REGISTER_ALGORITHM("direct", [](const AstraSim::AlgorithmParams& p) -> AstraSim::Algorithm* {
+  return new AstraSim::AllToAll(
+      p.collective_type, p.direct_collective_window, p.id, p.layer_num,
+      static_cast<AstraSim::RingTopology*>(p.topology),
+      p.data_size, p.direction, AstraSim::InjectionPolicy::Normal, p.boost_mode);
+})
+
+REGISTER_ALGORITHM("oneDirect", [](const AstraSim::AlgorithmParams& p) -> AstraSim::Algorithm* {
+  return new AstraSim::AllToAll(
+      p.collective_type, p.direct_collective_window, p.id, p.layer_num,
+      static_cast<AstraSim::RingTopology*>(p.topology),
+      p.data_size, p.direction, AstraSim::InjectionPolicy::Normal, p.boost_mode);
+})
+
 namespace AstraSim {
 AllToAll::AllToAll(
     ComType type,

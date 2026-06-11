@@ -6,9 +6,24 @@ LICENSE file in the root directory of this source tree.
 #include "HalvingDoubling.hh"
 #include <math.h>
 #include <stdlib.h>
+#include "AlgorithmRegistry.hh"
 #include "Ring.hh"
 #include "astra-sim/system/PacketBundle.hh"
 #include "astra-sim/system/RecvPacketEventHadndlerData.hh"
+
+REGISTER_ALGORITHM("halvingDoubling", [](const AstraSim::AlgorithmParams& p) -> AstraSim::Algorithm* {
+  return new AstraSim::HalvingDoubling(
+      p.collective_type, p.id, p.layer_num,
+      static_cast<AstraSim::RingTopology*>(p.topology),
+      p.data_size, p.boost_mode);
+})
+
+REGISTER_ALGORITHM("oneHalvingDoubling", [](const AstraSim::AlgorithmParams& p) -> AstraSim::Algorithm* {
+  return new AstraSim::HalvingDoubling(
+      p.collective_type, p.id, p.layer_num,
+      static_cast<AstraSim::RingTopology*>(p.topology),
+      p.data_size, p.boost_mode);
+})
 
 namespace AstraSim {
 HalvingDoubling::HalvingDoubling(

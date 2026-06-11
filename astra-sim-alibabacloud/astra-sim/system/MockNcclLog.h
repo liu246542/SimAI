@@ -26,7 +26,7 @@
 #include <cstdarg>
 #include <thread>
 
-#define LOG_PATH  "/etc/astra-sim/"
+#include "astra-sim/system/SimAiPaths.hh"
 
 enum class NcclLogLevel { DEBUG, INFO, WARNING,ERROR};
 
@@ -64,7 +64,7 @@ class MockNcclLog {
     return instance;
   }
   static void set_log_name(std::string log_name){
-    LogName = LOG_PATH + log_name;
+    LogName = AstraSim::getSimAiLogPath() + log_name;
   }
   void writeLog(NcclLogLevel level, const char* format,...) {
     if (level >= logLevel) {

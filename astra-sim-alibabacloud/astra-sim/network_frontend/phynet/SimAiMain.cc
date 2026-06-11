@@ -30,7 +30,7 @@
 #ifdef PHY_RDMA
 #include "astra-sim/system/SimAiFlowModelRdma.hh"
 #endif
-#define RESULT_PATH "/etc/astra-sim/results/ncclFlowModel_"
+#include "astra-sim/system/SimAiPaths.hh"
 
 using namespace std;
 
@@ -153,7 +153,7 @@ int main(int argc,char *argv[]){
     1,
     1,
     0,
-    RESULT_PATH,
+    AstraSim::getSimAiResultPath(),
     "phynet_test",
     true,
     false,

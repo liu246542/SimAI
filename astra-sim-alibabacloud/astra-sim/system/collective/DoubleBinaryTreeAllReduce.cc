@@ -4,8 +4,18 @@ LICENSE file in the root directory of this source tree.
 *******************************************************************************/
 
 #include "DoubleBinaryTreeAllReduce.hh"
+#include "AlgorithmRegistry.hh"
 #include "astra-sim/system/PacketBundle.hh"
 #include "astra-sim/system/RecvPacketEventHadndlerData.hh"
+#include "astra-sim/system/topology/BinaryTree.hh"
+
+REGISTER_ALGORITHM("doubleBinaryTree", [](const AstraSim::AlgorithmParams& p) -> AstraSim::Algorithm* {
+  return new AstraSim::DoubleBinaryTreeAllReduce(
+      p.id, p.layer_num,
+      static_cast<AstraSim::BinaryTree*>(p.topology),
+      p.data_size, p.boost_mode);
+})
+
 namespace AstraSim {
 DoubleBinaryTreeAllReduce::DoubleBinaryTreeAllReduce(
     int id,

@@ -4,6 +4,20 @@ LICENSE file in the root directory of this source tree.
 *******************************************************************************/
 
 #include "DoubleBinaryTreeTopology.hh"
+#include "TopologyRegistry.hh"
+
+REGISTER_TOPOLOGY("doubleBinaryTree", [](const AstraSim::TopologyParams& p) -> AstraSim::LogicalTopology* {
+  if (p.is_last_dim) {
+    return new AstraSim::DoubleBinaryTreeTopology(
+        p.id, p.dimension_size, p.id % p.offset, p.offset);
+  } else {
+    return new AstraSim::DoubleBinaryTreeTopology(
+        p.id, p.dimension_size,
+        (p.id - (p.id % (p.offset * p.dimension_size))) + (p.id % p.offset),
+        p.offset);
+  }
+})
+
 namespace AstraSim {
 DoubleBinaryTreeTopology::~DoubleBinaryTreeTopology() {
   delete DBMIN;

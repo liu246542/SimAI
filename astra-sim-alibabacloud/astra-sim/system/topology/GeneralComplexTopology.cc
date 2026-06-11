@@ -6,6 +6,7 @@ LICENSE file in the root directory of this source tree.
 #include "GeneralComplexTopology.hh"
 #include "DoubleBinaryTreeTopology.hh"
 #include "RingTopology.hh"
+#include "TopologyRegistry.hh"
 
 namespace AstraSim {
 BasicLogicalTopology* GeneralComplexTopology::get_basic_topology_at_dimension(
@@ -37,55 +38,32 @@ GeneralComplexTopology::GeneralComplexTopology(
     std::vector<CollectiveImplementation*> collective_implementation) {
   int offset = 1;
   int last_dim = collective_implementation.size() - 1;
+  int total_npus = 1;
+  for (int d : dimension_size) {
+    total_npus *= d;
+  }
+
   for (int dim = 0; dim < collective_implementation.size(); dim++) {
-    if (collective_implementation[dim]->type ==
-            CollectiveImplementationType::Ring ||
-        collective_implementation[dim]->type ==
-            CollectiveImplementationType::Direct ||
-        collective_implementation[dim]->type ==
-            CollectiveImplementationType::HalvingDoubling ||
-        collective_implementation[dim]->type ==
-            CollectiveImplementationType::NcclFlowModel || 
-        collective_implementation[dim]->type ==
-            CollectiveImplementationType::NcclTreeFlowModel) {
-      RingTopology* ring = new RingTopology(
-          RingTopology::Dimension::NA,
-          id,
-          dimension_size[dim],
-          (id % (offset * dimension_size[dim])) / offset,
-          offset);
-      dimension_topology.push_back(ring);
-    } else if (
-        collective_implementation[dim]->type ==
-            CollectiveImplementationType::OneRing ||
-        collective_implementation[dim]->type ==
-            CollectiveImplementationType::OneDirect ||
-        collective_implementation[dim]->type ==
-            CollectiveImplementationType::OneHalvingDoubling) {
-      int total_npus = 1;
-      for (int d : dimension_size) {
-        total_npus *= d;
-      }
-      RingTopology* ring = new RingTopology(
-          RingTopology::Dimension::NA, id, total_npus, id % total_npus, 1);
-      dimension_topology.push_back(ring);
-      return;
-    } else if (
-        collective_implementation[dim]->type ==
-        CollectiveImplementationType::DoubleBinaryTree) {
-      if (dim == last_dim) {
-        DoubleBinaryTreeTopology* DBT = new DoubleBinaryTreeTopology(
-            id, dimension_size[dim], id % offset, offset);
-        dimension_topology.push_back(DBT);
-      } else {
-        DoubleBinaryTreeTopology* DBT = new DoubleBinaryTreeTopology(
-            id,
-            dimension_size[dim],
-            (id - (id % (offset * dimension_size[dim]))) + (id % offset),
-            offset);
-        dimension_topology.push_back(DBT);
-      }
+    TopologyParams tp;
+    tp.id = id;
+    tp.dimension_size = dimension_size[dim];
+    tp.index_in_dimension = (id % (offset * dimension_size[dim])) / offset;
+    tp.offset = offset;
+    tp.is_last_dim = (dim == last_dim);
+    tp.total_npus = total_npus;
+
+    std::string name = collective_implementation[dim]->config_name;
+    LogicalTopology* topo = TopologyRegistry::instance().create(name, tp);
+
+    if (!topo) {
+      topo = new RingTopology(RingTopology::Dimension::NA, id,
+                              dimension_size[dim], tp.index_in_dimension, offset);
     }
+
+    dimension_topology.push_back(topo);
+
+    if (name.substr(0, 3) == "one") return;
+
     offset *= dimension_size[dim];
   }
 }

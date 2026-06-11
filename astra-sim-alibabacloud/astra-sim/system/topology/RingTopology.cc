@@ -4,6 +4,56 @@ LICENSE file in the root directory of this source tree.
 *******************************************************************************/
 
 #include "RingTopology.hh"
+#include "TopologyRegistry.hh"
+
+REGISTER_TOPOLOGY("ring", [](const AstraSim::TopologyParams& p) -> AstraSim::LogicalTopology* {
+  return new AstraSim::RingTopology(
+      AstraSim::RingTopology::Dimension::NA, p.id, p.dimension_size,
+      p.index_in_dimension, p.offset);
+})
+
+REGISTER_TOPOLOGY("direct", [](const AstraSim::TopologyParams& p) -> AstraSim::LogicalTopology* {
+  return new AstraSim::RingTopology(
+      AstraSim::RingTopology::Dimension::NA, p.id, p.dimension_size,
+      p.index_in_dimension, p.offset);
+})
+
+REGISTER_TOPOLOGY("halvingDoubling", [](const AstraSim::TopologyParams& p) -> AstraSim::LogicalTopology* {
+  return new AstraSim::RingTopology(
+      AstraSim::RingTopology::Dimension::NA, p.id, p.dimension_size,
+      p.index_in_dimension, p.offset);
+})
+
+REGISTER_TOPOLOGY("NcclFlowModel", [](const AstraSim::TopologyParams& p) -> AstraSim::LogicalTopology* {
+  return new AstraSim::RingTopology(
+      AstraSim::RingTopology::Dimension::NA, p.id, p.dimension_size,
+      p.index_in_dimension, p.offset);
+})
+
+REGISTER_TOPOLOGY("ncclRingTreeModel", [](const AstraSim::TopologyParams& p) -> AstraSim::LogicalTopology* {
+  return new AstraSim::RingTopology(
+      AstraSim::RingTopology::Dimension::NA, p.id, p.dimension_size,
+      p.index_in_dimension, p.offset);
+})
+
+REGISTER_TOPOLOGY("oneRing", [](const AstraSim::TopologyParams& p) -> AstraSim::LogicalTopology* {
+  return new AstraSim::RingTopology(
+      AstraSim::RingTopology::Dimension::NA, p.id, p.total_npus,
+      p.id % p.total_npus, 1);
+})
+
+REGISTER_TOPOLOGY("oneDirect", [](const AstraSim::TopologyParams& p) -> AstraSim::LogicalTopology* {
+  return new AstraSim::RingTopology(
+      AstraSim::RingTopology::Dimension::NA, p.id, p.total_npus,
+      p.id % p.total_npus, 1);
+})
+
+REGISTER_TOPOLOGY("oneHalvingDoubling", [](const AstraSim::TopologyParams& p) -> AstraSim::LogicalTopology* {
+  return new AstraSim::RingTopology(
+      AstraSim::RingTopology::Dimension::NA, p.id, p.total_npus,
+      p.id % p.total_npus, 1);
+})
+
 namespace AstraSim {
 RingTopology::RingTopology(
     Dimension dimension,
