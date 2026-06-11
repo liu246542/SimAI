@@ -1,3 +1,7 @@
+<p align="left">
+    <a href="PluggableRegistry_CN.md">中文</a>&nbsp ｜ &nbspEnglish
+</p>
+
 # SimAI Pluggable Registry: Collective Algorithm & Network Topology Extension Guide
 
 ## 1. Background & Motivation
